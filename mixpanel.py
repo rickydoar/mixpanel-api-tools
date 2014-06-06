@@ -37,8 +37,6 @@ class Mixpanel(object):
 			ENDPOINT = self.FORMAT_ENDPOINT
 
 		request_url = '/'.join([ENDPOINT, str(self.VERSION)] + methods) + '/?' + self.unicode_urlencode(params)
-
-		print request_url
 		
 		request = urllib.urlopen(request_url)
 		data = request.read()
