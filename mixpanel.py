@@ -140,8 +140,6 @@ def validator(params, required, optional, endpoint, api_key, api_secret):
 	else:
 		return 'Please reformat your request and try again'
 
-print segmentation('da5111c21cb81744b6bb94d7ca4440ef', 'd656bebfbb741756682be46b2168d191', {'event':'Event 1','to_date':'2014-06-01', 'from_date':'2014-05-01'})
-
 
 
 
