@@ -91,7 +91,7 @@ class Mixpanel(object):
 		return hash.hexdigest()
 
 
-def export(api_key, api_secret, params):
+def event_export(api_key, api_secret, params):
 	api = Mixpanel(
 		api_key = api_key, 
 		api_secret = api_secret
@@ -99,7 +99,7 @@ def export(api_key, api_secret, params):
 	data = api.request(['export'], params)
 	return data
 
-def formatted_export(api_key, api_secret, endpoint, params):
+def formatted_event_export(api_key, api_secret, endpoint, params):
 	api = Mixpanel(
 		api_key = api_key, 
 		api_secret = api_secret
@@ -118,6 +118,7 @@ def events(api_key, api_secret, params):
 	optional_params = ['format']
 	endpoint = 'events'
 	return validator(params, required_params, optional_params, endpoint, api_key, api_secret)
+
 def events_top(api_key, api_secret, params):
 	required_params = ['type']
 	optional_params = ['limit']
@@ -135,7 +136,7 @@ def validator(params, required, optional, endpoint, api_key, api_secret):
 			print '%s is not a recognized parameter of this endpoint' % (param)
 			validated = False
 	if validated:
-		data = formatted_export(api_key, api_secret, endpoint, params)
+		data = formatted_event_export(api_key, api_secret, endpoint, params)
 		return data
 	else:
 		return 'Please reformat your request and try again'
