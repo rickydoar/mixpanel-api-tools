@@ -19,7 +19,7 @@ class Mixpanel(object):
 		self.api_key = api_key
 		self.api_secret = api_secret
 		
-	def request(self, methods, params):
+	def request(self, methods, params, debug_request=0):
 		"""
 			methods - List of methods to be joined, e.g. ['events', 'properties', 'values']
 					  will give us http://mixpanel.com/api/2.0/events/properties/values/
@@ -37,6 +37,9 @@ class Mixpanel(object):
 			ENDPOINT = self.FORMAT_ENDPOINT
 
 		request_url = '/'.join([ENDPOINT, str(self.VERSION)] + methods) + '/?' + self.unicode_urlencode(params)
+
+		if debug_request == 1:
+			print request_url
 		
 		request = urllib.urlopen(request_url)
 		data = request.read()
@@ -88,56 +91,53 @@ class Mixpanel(object):
 			hash.update(self.api_secret)
 		return hash.hexdigest()
 
-
-def event_export(api_key, api_secret, params):
-	api = Mixpanel(
-		api_key = api_key, 
-		api_secret = api_secret
-	)
-	data = api.request(['export'], params)
-	return data
-
-def formatted_event_export(api_key, api_secret, endpoint, params):
-	api = Mixpanel(
-		api_key = api_key, 
-		api_secret = api_secret
-	)
-	data = api.request([endpoint], params)
-	return data
-
-def segmentation(api_key, api_secret, params):
-	required_params = ['to_date', 'from_date', 'event']
-	optional_params = ['on', 'unit', 'where', 'limit', 'type']
-	endpoint = 'segmentation'
-	return validator(params, required_params, optional_params, endpoint, api_key, api_secret)
-
-def events(api_key, api_secret, params):
-	required_params = ['event', 'type', 'unit', 'interval']
-	optional_params = ['format']
-	endpoint = 'events'
-	return validator(params, required_params, optional_params, endpoint, api_key, api_secret)
-
-def events_top(api_key, api_secret, params):
-	required_params = ['type']
-	optional_params = ['limit']
-	endpoint = 'events/top'
-	return validator(params, required_params, optional_params, endpoint, api_key, api_secret)
-	
-def validator(params, required, optional, endpoint, api_key, api_secret):
-	validated = True
-	for param in required:
-		if param not in params:
-			print 'You must add the parameter "%s" to the params as it is a required parameter of this endpoint' % (param)
-			validated = False
-	for param in params:
-		if param not in required and  param not in optional:
-			print '%s is not a recognized parameter of this endpoint' % (param)
-			validated = False
-	if validated:
-		data = formatted_event_export(api_key, api_secret, endpoint, params)
+	def event_export(self, params, debug=0):
+		if debug == 1:
+			data = api.request(['export'], params, debug)
+		data = self.request(['export'], params)
 		return data
-	else:
-		return 'Please reformat your request and try again'
+
+	def formatted_event_export(self, endpoint, params, debug=0):
+		if debug == 1:
+			data = api.request(['export'], params, debug)
+		data = self.request([endpoint], params)
+		return data
+
+	def segmentation(self, params):
+		required_params = ['to_date', 'from_date', 'event']
+		optional_params = ['on', 'unit', 'where', 'limit', 'type']
+		endpoint = 'segmentation'
+		return self.validator(params, required_params, optional_params, endpoint)
+
+	def events(self, params):
+		required_params = ['event', 'type', 'unit', 'interval']
+		optional_params = ['format']
+		endpoint = 'events'
+		return self.validator(params, required_params, optional_params, endpoint)
+
+
+	def events_top(self, params):
+		required_params = ['type']
+		optional_params = ['limit']
+		endpoint = 'events/top'
+		return self.validator(params, required_params, optional_params, endpoint)
+
+		
+	def validator(self, params, required, optional, endpoint):
+		validated = True
+		for param in required:
+			if param not in params:
+				print 'You must add the parameter "%s" to the params as it is a required parameter of this endpoint' % (param)
+				validated = False
+		for param in params:
+			if param not in required and  param not in optional:
+				print '%s is not a recognized parameter of this endpoint' % (param)
+				validated = False
+		if validated:
+			data = self.formatted_event_export(endpoint, params)
+			return data
+		else:
+			return 'Please reformat your request and try again'
 
 
 
