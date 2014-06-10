@@ -15,9 +15,10 @@ class Mixpanel(object):
 	RAW_ENDPOINT = 'http://data.mixpanel.com/api'
 	VERSION = '2.0'
 
-	def __init__(self, api_key, api_secret):
+	def __init__(self, api_key, api_secret, token=None):
 		self.api_key = api_key
 		self.api_secret = api_secret
+		self.token = token
 		
 	def request(self, methods, params, debug_request=0):
 		"""
@@ -103,23 +104,37 @@ class Mixpanel(object):
 		data = self.request([endpoint], params)
 		return data
 
-	def segmentation(self, params):
+	def segmentation(self, params = None):
 		required_params = ['to_date', 'from_date', 'event']
 		optional_params = ['on', 'unit', 'where', 'limit', 'type']
 		endpoint = 'segmentation'
+		if params == None:
+			return "Required Params: %s, Optional Params: %s" % (required_params, optional_params)
 		return self.validator(params, required_params, optional_params, endpoint)
 
-	def events(self, params):
+	def events(self, params = None):
 		required_params = ['event', 'type', 'unit', 'interval']
 		optional_params = ['format']
 		endpoint = 'events'
+		if params == None:
+			return "Required Params: %s, Optional Params: %s" % (required_params, optional_params)
 		return self.validator(params, required_params, optional_params, endpoint)
 
 
-	def events_top(self, params):
+	def events_top(self, params = None):
 		required_params = ['type']
 		optional_params = ['limit']
 		endpoint = 'events/top'
+		if params == None:
+			return "Required Params: %s, Optional Params: %s" % (required_params, optional_params)
+		return self.validator(params, required_params, optional_params, endpoint)
+
+	def arb_funnels(self, params = None):
+		required_params = ['events', 'from_date', 'to_date']
+		optional_params = ['interval', 'length', 'on']
+		endpoint = 'arb_funnels'
+		if params == None:
+			return "Required Params: %s, Optional Params: %s" % (required_params, optional_params)
 		return self.validator(params, required_params, optional_params, endpoint)
 
 		
