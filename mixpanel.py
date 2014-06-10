@@ -7,6 +7,7 @@ try:
     import json
 except ImportError:
     import simplejson as json
+import csv
 
 
 class Mixpanel(object):
@@ -96,50 +97,53 @@ class Mixpanel(object):
 		if debug == 1:
 			data = api.request(['export'], params, debug)
 		data = self.request(['export'], params)
-		return data
+		data = data.split("\n")[:-1]
+		json_data = []
+		for event in data:
+			json_data.append(json.loads(event))
+		return json_data
 
 	def formatted_event_export(self, endpoint, params, debug=0):
-		if debug == 1:
-			data = api.request(['export'], params, debug)
-		data = self.request([endpoint], params)
+		data = self.request([endpoint], params, debug)
+		data = json.loads(data)
 		return data
 
-	def segmentation(self, params = None):
+	def segmentation(self, params = None, debug = 0):
 		required_params = ['to_date', 'from_date', 'event']
 		optional_params = ['on', 'unit', 'where', 'limit', 'type']
 		endpoint = 'segmentation'
-		if params == None:
-			return "Required Params: %s, Optional Params: %s" % (required_params, optional_params)
-		return self.validator(params, required_params, optional_params, endpoint)
+		return self.validator(params, required_params, optional_params, endpoint, debug)
 
-	def events(self, params = None):
+	def events(self, params = None, debug = 0):
 		required_params = ['event', 'type', 'unit', 'interval']
 		optional_params = ['format']
 		endpoint = 'events'
-		if params == None:
-			return "Required Params: %s, Optional Params: %s" % (required_params, optional_params)
-		return self.validator(params, required_params, optional_params, endpoint)
+		return self.validator(params, required_params, optional_params, endpoint, debug)
 
 
-	def events_top(self, params = None):
+	def events_top(self, params = None, debug = 0):
 		required_params = ['type']
 		optional_params = ['limit']
 		endpoint = 'events/top'
-		if params == None:
-			return "Required Params: %s, Optional Params: %s" % (required_params, optional_params)
-		return self.validator(params, required_params, optional_params, endpoint)
+		return self.validator(params, required_params, optional_params, endpoint, debug)
 
-	def arb_funnels(self, params = None):
+	def arb_funnels(self, params = None, debug = 0):
 		required_params = ['events', 'from_date', 'to_date']
 		optional_params = ['interval', 'length', 'on']
 		endpoint = 'arb_funnels'
-		if params == None:
-			return "Required Params: %s, Optional Params: %s" % (required_params, optional_params)
-		return self.validator(params, required_params, optional_params, endpoint)
+		return self.validator(params, required_params, optional_params, endpoint, debug)
+
+	def retention(self, params = None, debug = 0):
+		required_params = ['from_date', 'to_date']
+		optional_params = ['retention_type', 'born_event', 'event', 'born_where', 'where', 'interval', 'interval_count', 'unit', 'limit', 'on']
+		endpoint = 'arb_funnels'
+		return self.validator(params, required_params, optional_params, endpoint, debug)
 
 		
-	def validator(self, params, required, optional, endpoint):
+	def validator(self, params, required, optional, endpoint, debug):
 		validated = True
+		if params == None:
+			return "Required Params: %s, Optional Params: %s" % (required, optional)
 		for param in required:
 			if param not in params:
 				print 'You must add the parameter "%s" to the params as it is a required parameter of this endpoint' % (param)
@@ -149,10 +153,11 @@ class Mixpanel(object):
 				print '%s is not a recognized parameter of this endpoint' % (param)
 				validated = False
 		if validated:
-			data = self.formatted_event_export(endpoint, params)
+			data = self.formatted_event_export(endpoint, params, debug)
 			return data
 		else:
-			return 'Please reformat your request and try again'
+			return 'Please reformat your request and try again.'
+
 
 
 
