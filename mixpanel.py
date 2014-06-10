@@ -173,13 +173,17 @@ def csv(data):
 		for event in data:
 			line = [event['event']]
 			for key in keys:
-				try:
-					line.append(event['properties'][key])
-				except:
+				if event['properties'].get(key):
+					line.append(str(event['properties'][key]))
+				else:
 					line.append('')
-			f.writerow(line)
-
-
+			try:
+				f.writerow(line)
+			except:
+				temp = []
+				for l in line:
+					temp.append(l.encode('utf-8'))
+				f.writerow(temp)
 
 
 
