@@ -3,11 +3,12 @@ import ast
 import urllib
 import pickle
 import time
+import math
+import csv as csv1
 try:
     import json
 except ImportError:
     import simplejson as json
-import csv
 
 
 class Mixpanel(object):
@@ -134,9 +135,9 @@ class Mixpanel(object):
 		return self.validator(params, required_params, optional_params, endpoint, debug)
 
 	def retention(self, params = None, debug = 0):
-		required_params = ['from_date', 'to_date']
+		required_params = ['from_date', 'to_date', 'retention type defaults to birth']
 		optional_params = ['retention_type', 'born_event', 'event', 'born_where', 'where', 'interval', 'interval_count', 'unit', 'limit', 'on']
-		endpoint = 'arb_funnels'
+		endpoint = 'retention'
 		return self.validator(params, required_params, optional_params, endpoint, debug)
 
 		
@@ -157,6 +158,26 @@ class Mixpanel(object):
 			return data
 		else:
 			return 'Please reformat your request and try again.'
+
+def csv(data):
+	if 'event' in data[0]:
+		keys = ['event']
+		for event in data:
+			for prop in event['properties']:
+				if prop not in keys:
+					keys.append(prop)
+		f = csv1.writer(open("raw_data%s.csv" % (int(math.floor(time.time()))), "wb+"))
+		print "raw_data%s.csv created" % (int(math.floor(time.time())))
+		f.writerow(keys)
+		keys.remove('event')
+		for event in data:
+			line = [event['event']]
+			for key in keys:
+				try:
+					line.append(event['properties'][key])
+				except:
+					line.append('')
+			f.writerow(line)
 
 
 
