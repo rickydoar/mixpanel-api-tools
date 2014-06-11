@@ -24,11 +24,6 @@ class Mixpanel(object):
         self.token = token
         
     def request(self, methods, params, debug=0, high_volume=0):
-        """
-            methods - List of methods to be joined, e.g. ['events', 'properties', 'values']
-                      will give us http://mixpanel.com/api/2.0/events/properties/values/
-            params - Extra parameters associated with method
-        """
         params['api_key'] = self.api_key
         params['expire'] = int(time.time()) + 600   # Grant this request 10 minutes.
 
@@ -55,10 +50,6 @@ class Mixpanel(object):
             return data
 
     def unicode_urlencode(self, params):
-        """
-            Convert lists to JSON encoded strings, and correctly handle any 
-            unicode URL parameters.
-        """
         if isinstance(params, dict):
             params = params.items()
         for i, param in enumerate(params):
@@ -70,10 +61,6 @@ class Mixpanel(object):
         )
 
     def hash_args(self, args, secret=None):
-        """
-            Hashes arguments by joining key=value pairs, appending a secret, and 
-            then taking the MD5 hex digest.
-        """
         for a in args:
             if isinstance(args[a], list): args[a] = json.dumps(args[a])
 
@@ -99,11 +86,8 @@ class Mixpanel(object):
             hash.update(self.api_secret)
         return hash.hexdigest()
 
-    def people_export(self, params={}, debug=0):
-        if debug == 1:
-            data = self.request(['engage'], params, debug)
-        data = self.request(['export'], params)
-        response = self.request(['engage'], params)
+    def people_export(self, params={}, debug=0, high_volume=0):
+        response = self.request(['engage'], params, debug)
         params.update({
                     'session_id' : json.loads(response)['session_id'],
                     'page':0
@@ -114,18 +98,31 @@ class Mixpanel(object):
         fname = "backup-people.txt"
         has_results = True
         total = 0
-        with open(fname,'w') as f:
-            while has_results:
-                responser = json.loads(response)['results']
-                total += len(responser)
-                has_results = len(responser) == 1000
-                for data in responser:
-                    f.write(json.dumps(data)+'\n')
-                print "%d / %d" % (total,global_total)
-                params['page'] += 1
-                if has_results:
-                    response = self.request(['engage'], params)
-        print "File %s created" % (fname)
+
+        if high_volume == 1:
+            f = open(fname, 'w')
+        else:
+            data = []
+        while has_results:
+            responser = json.loads(response)['results']
+            total += len(responser)
+            has_results = len(responser) == 1000
+            for people in responser:
+                if high_volume == 1:
+                    f.write(json.dumps(people)+'\n')
+                else:
+                    data.append(json.dumps(people))
+            print "%d / %d" % (total,global_total)
+            params['page'] += 1
+            if has_results:
+                response = self.request(['engage'], params)
+        if high_volume == 1:
+            print "File %s created" % (fname)
+        else:
+            json_data = []
+            for people in data:
+                json_data.append(json.loads(people))
+            return json_data
 
     def event_export(self, params, debug=0, high_volume=0):
         if high_volume == 0:
@@ -195,31 +192,51 @@ class Mixpanel(object):
             return 'Please reformat your request and try again.'
 
 def csv(data):
-    if type(data) == type([1,2,3]) and 'event' in data[0]:
-        f = csv1.writer(open("raw_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100)), "wb+"))
-        keys = ['event']
-        for event in data:
-            for prop in event['properties']:
-                if prop not in keys:
-                    keys.append(prop)
-        f.writerow(keys)
-        keys.remove('event')
-        for event in data:
-            line = [event['event']]
-            for key in keys:
-                if event['properties'].get(key):
-                    line.append(str(event['properties'][key]))
-                else:
-                    line.append('')
-            try:
-                f.writerow(line)
-            except:
-                temp = []
-                for l in line:
-                    temp.append(l.encode('utf-8'))
-                f.writerow(temp)
-        print "raw_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
-    elif data['data'].get('values'):
+    if type(data) == type('abc') or type(data) == type(None):
+        print "csv expects JSON data"
+    elif type(data) == type([1,2,3]):
+        if 'event' in data[0]:
+            f = csv1.writer(open("raw_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100)), "wb+"))
+            keys = ['event']
+            for event in data:
+                for prop in event['properties']:
+                    if prop not in keys:
+                        keys.append(prop)
+            f.writerow(keys)
+            keys.remove('event')
+            for event in data:
+                line = [event['event']]
+                for key in keys:
+                    if event['properties'].get(key):
+                        line.append(str(event['properties'][key]))
+                    else:
+                        line.append('')
+                try:
+                    f.writerow(line)
+                except:
+                    temp = []
+                    for l in line:
+                        temp.append(l.encode('utf-8'))
+                    f.writerow(temp)
+            print "raw_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
+        elif data[0].get('$distinct_id') and data[0].get('$properties'):
+            f = csv1.writer(open("people_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100)), "wb+"))
+            keys = ['distinct_id']
+            for people in data:
+                for prop in people['$properties']:
+                    if prop not in keys:
+                        keys.append(prop)
+            f.writerow(keys)
+            for people in data:
+                values = [people['$distinct_id']]
+                for prop in keys:
+                    if people['$properties'].get(prop):
+                        values.append(people['$properties'][prop])
+                    else:
+                        values.append('')
+                f.writerow(values)
+            print "people_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
+    elif data['data'].get('values') and data['data'].get('series'):
         f = csv1.writer(open("segmentation_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100)), "wb+"))
         keys = ['event']
         for date in data['data']['series']:
@@ -231,10 +248,6 @@ def csv(data):
                 values.append(data['data']['values'][segment][date])
             f.writerow(values)
         print "segmentation_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
-
-
-
-
 
 
 
