@@ -23,7 +23,7 @@ class Mixpanel(object):
         self.api_secret = api_secret
         self.token = token
         
-    def request(self, methods, params, debug_request=0):
+    def request(self, methods, params, debug=0, high_volume=0):
         """
             methods - List of methods to be joined, e.g. ['events', 'properties', 'values']
                       will give us http://mixpanel.com/api/2.0/events/properties/values/
@@ -42,13 +42,17 @@ class Mixpanel(object):
 
         request_url = '/'.join([ENDPOINT, str(self.VERSION)] + methods) + '/?' + self.unicode_urlencode(params)
 
-        if debug_request == 1:
+        if debug == 1:
             print request_url
-        
-        request = urllib.urlopen(request_url)
-        data = request.read()
 
-        return data
+        if high_volume == 1:
+            output_file = "%s_data%s.txt" % (methods[0], int(math.floor(time.time())))
+            request = urllib.urlretrieve(request_url, output_file)
+            print output_file
+        else:
+            request = urllib.urlopen(request_url)
+            data = request.read()
+            return data
 
     def unicode_urlencode(self, params):
         """
@@ -95,15 +99,45 @@ class Mixpanel(object):
             hash.update(self.api_secret)
         return hash.hexdigest()
 
-    def event_export(self, params, debug=0):
+    def people_export(self, params={}, debug=0):
         if debug == 1:
-            data = api.request(['export'], params, debug)
+            data = self.request(['engage'], params, debug)
         data = self.request(['export'], params)
-        data = data.split("\n")[:-1]
-        json_data = []
-        for event in data:
-            json_data.append(json.loads(event))
-        return json_data
+        response = self.request(['engage'], params)
+        params.update({
+                    'session_id' : json.loads(response)['session_id'],
+                    'page':0
+                    })
+        global_total = json.loads(response)['total']
+        print "Session id is %s \n" % params['session_id']
+        print "Here are the # of people %d" % global_total
+        fname = "backup-people.txt"
+        has_results = True
+        total = 0
+        with open(fname,'w') as f:
+            while has_results:
+                responser = json.loads(response)['results']
+                total += len(responser)
+                has_results = len(responser) == 1000
+                for data in responser:
+                    f.write(json.dumps(data)+'\n')
+                print "%d / %d" % (total,global_total)
+                params['page'] += 1
+                if has_results:
+                    response = self.request(['engage'], params)
+        print "File %s created" % (fname)
+
+    def event_export(self, params, debug=0, high_volume=0):
+        if high_volume == 0:
+            data = self.request(['export'], params, debug, high_volume)
+            data = data.split("\n")[:-1]
+            json_data = []
+            for event in data:
+                json_data.append(json.loads(event))
+            return json_data
+        else:
+            self.request(['export'], params, debug, high_volume)
+
 
     def formatted_event_export(self, endpoint, params, debug=0):
         data = self.request([endpoint], params, debug)
