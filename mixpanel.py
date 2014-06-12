@@ -5,11 +5,12 @@ import pickle
 import time
 import math
 import csv as csv1
+from random import randint
 try:
     import json
 except ImportError:
     import simplejson as json
-from random import randint
+import base64
 
 
 class Mixpanel(object):
@@ -86,15 +87,57 @@ class Mixpanel(object):
             hash.update(self.api_secret)
         return hash.hexdigest()
 
+    def delete_people(self, params={}):
+        self.people_export(params, debug=0, high_volume=1)
+        GREENLIGHT = raw_input("This will delete %s users. File backup named %s  Enter 'YES' if this is correct:  " % (global_total, fname))
+        if GREENLIGHT == 'YES':
+            params = {'$delete':True}
+            with open(fname,'r') as f:
+                users = f.readlines()
+            counter = len(users) // 100
+            while len(users):
+                batch = users[:50]
+                self.update(batch, params)
+                if len(users) // 100 != counter:
+                    counter = len(users) // 100
+                    print "%d bad users left!" % len(users)
+                users = users[50:]
+
+    def update(self, userlist, uparams):
+        url = "http://api.mixpanel.com/engage/"
+        batch = []
+
+        for user in userlist:
+            distinctid = json.loads(user)['$distinct_id']
+            print distinctid
+            tempparams = {
+                    'token':self.token,
+                    '$distinct_id':distinctid,
+                    '$ignore_alias':'True'
+                    }
+            tempparams.update(uparams)
+            batch.append(tempparams)
+
+        payload = self.unicode_urlencode({"data":base64.b64encode(json.dumps(batch)), "verbose":1,"api_key":self.api_key})
+        request_url = '%s?%s' % (url, payload)
+        request = urllib.urlopen(request_url)
+        message = request.read()
+
+        if json.loads(message)['status'] != 1:
+            print message
+
+
     def people_export(self, params={}, debug=0, high_volume=0):
         response = self.request(['engage'], params, debug)
         params.update({
                     'session_id' : json.loads(response)['session_id'],
                     'page':0
                     })
+        global global_total
         global_total = json.loads(response)['total']
         print "Session id is %s \n" % params['session_id']
         print "Here are the # of people %d" % global_total
+        global fname
         fname = "backup-people.txt"
         has_results = True
         total = 0
@@ -195,8 +238,10 @@ def csv(data):
     if type(data) == type('abc') or type(data) == type(None):
         print "csv expects JSON data"
     elif type(data) == type([1,2,3]):
-        if 'event' in data[0]:
-            f = csv1.writer(open("raw_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100)), "wb+"))
+        if data[0].get('event'):
+            '''Raw Data'''
+            fname = "raw_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
+            f = csv1.writer(open(fname, "wb+"))
             keys = ['event']
             for event in data:
                 for prop in event['properties']:
@@ -218,15 +263,18 @@ def csv(data):
                     for l in line:
                         temp.append(l.encode('utf-8'))
                     f.writerow(temp)
-            print "raw_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
+            print fname
         elif data[0].get('$distinct_id') and data[0].get('$properties'):
-            f = csv1.writer(open("people_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100)), "wb+"))
+            '''People Data'''
+            fname = "people_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
+            f = csv1.writer(open(fname, "wb+"))
             keys = ['distinct_id']
             for people in data:
                 for prop in people['$properties']:
                     if prop not in keys:
                         keys.append(prop)
             f.writerow(keys)
+            keys.remove('distinct_id')
             for people in data:
                 values = [people['$distinct_id']]
                 for prop in keys:
@@ -235,10 +283,15 @@ def csv(data):
                     else:
                         values.append('')
                 f.writerow(values)
-            print "people_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
+            print fname
     elif data['data'].get('values') and data['data'].get('series'):
-        f = csv1.writer(open("segmentation_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100)), "wb+"))
-        keys = ['event']
+        '''Segmentation Data'''
+        fname = "segmentation_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
+        f = csv1.writer(open(fname, "wb+"))
+        if len(data['data']['values']) == 1:
+            keys = ['Event']
+        else:
+            keys = ['Property']
         for date in data['data']['series']:
             keys.append(date)
         f.writerow(keys)
@@ -247,7 +300,8 @@ def csv(data):
             for date in data['data']['values'][segment]:
                 values.append(data['data']['values'][segment][date])
             f.writerow(values)
-        print "segmentation_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
+        print fname
+
 
 
 
