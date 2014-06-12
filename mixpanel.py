@@ -138,7 +138,7 @@ class Mixpanel(object):
         print "Session id is %s \n" % params['session_id']
         print "Here are the # of people %d" % global_total
         global fname
-        fname = "backup-people.txt"
+        fname = "backup-people%s%s.txt" % (int(math.floor(time.time())), randint(1,100))
         has_results = True
         total = 0
 
