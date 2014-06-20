@@ -118,13 +118,14 @@ class Mixpanel(object):
             tempparams.update(uparams)
             batch.append(tempparams)
 
-        payload = self.unicode_urlencode({"data":base64.b64encode(json.dumps(batch)), "verbose":1,"api_key":self.api_key})
+        payload = self.unicode_urlencode({"data":base64.b64encode(json.dumps(batch)), "verbose":1})
         request_url = '%s?%s' % (url, payload)
         request = urllib.urlopen(request_url)
         message = request.read()
 
         if json.loads(message)['status'] != 1:
             print message
+            print request_url
 
 
     def people_export(self, params={}, debug=0, high_volume=0):
@@ -168,6 +169,8 @@ class Mixpanel(object):
             return json_data
 
     def event_export(self, params, debug=0, high_volume=0):
+        if 'event' in params and isinstance(params.get('event'), str):
+            return 'Event param must be in list format'
         if high_volume == 0:
             data = self.request(['export'], params, debug, high_volume)
             data = data.split("\n")[:-1]
@@ -235,9 +238,10 @@ class Mixpanel(object):
             return 'Please reformat your request and try again.'
 
 def csv(data):
-    if type(data) == type('abc') or type(data) == type(None):
+    if isinstance(data, str) or data is None:
         print "csv expects JSON data"
-    elif type(data) == type([1,2,3]):
+
+    elif isinstance(data, list):
         if data[0].get('event'):
             '''Raw Data'''
             fname = "raw_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
@@ -246,24 +250,25 @@ def csv(data):
             for event in data:
                 for prop in event['properties']:
                     if prop not in keys:
-                        keys.append(prop)
+                        keys.append(str(prop).encode('utf-8'))
             f.writerow(keys)
             keys.remove('event')
             for event in data:
-                line = [event['event']]
-                for key in keys:
-                    if event['properties'].get(key):
-                        line.append(str(event['properties'][key]))
+                values = [event['event']]
+                for prop in keys:
+                    if event['properties'].get(prop):
+                        if isinstance(event['properties'][prop], int) or isinstance(event['properties'][prop], list) or isinstance(event['properties'][prop], float):
+                            values.append(str(event['properties'][prop]))
+                        else:
+                            values.append(event['properties'][prop].encode('utf-8'))
                     else:
-                        line.append('')
+                        values.append('')
                 try:
-                    f.writerow(line)
+                    f.writerow(values)
                 except:
-                    temp = []
-                    for l in line:
-                        temp.append(l.encode('utf-8'))
-                    f.writerow(temp)
+                    print values
             print fname
+
         elif data[0].get('$distinct_id') and data[0].get('$properties'):
             '''People Data'''
             fname = "people_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
@@ -272,18 +277,26 @@ def csv(data):
             for people in data:
                 for prop in people['$properties']:
                     if prop not in keys:
-                        keys.append(prop)
+                        keys.append(str(prop).encode('utf-8'))
             f.writerow(keys)
             keys.remove('distinct_id')
+            x = 0
             for people in data:
                 values = [people['$distinct_id']]
                 for prop in keys:
                     if people['$properties'].get(prop):
-                        values.append(people['$properties'][prop])
+                        if isinstance(people['$properties'][prop], int) or isinstance(people['$properties'][prop], list) or isinstance(people['$properties'][prop], float):
+                            values.append(str(people['$properties'][prop]))
+                        else:
+                            values.append(people['$properties'][prop].encode('utf-8'))
                     else:
                         values.append('')
-                f.writerow(values)
+                try:
+                    f.writerow(values)
+                except:
+                    print values
             print fname
+
     elif data['data'].get('values') and data['data'].get('series'):
         '''Segmentation Data'''
         fname = "segmentation_data%s%s.csv" % (int(math.floor(time.time())), randint(1,100))
@@ -296,11 +309,15 @@ def csv(data):
             keys.append(date)
         f.writerow(keys)
         for segment in data['data']['values']:
-            values = [segment]
+            if isinstance(segment, int) or isinstance(segment, list) or isinstance(segment, float):
+                values = [str(segment)]
+            else:
+                values = [segment.encode('utf-8')]
             for date in data['data']['values'][segment]:
                 values.append(data['data']['values'][segment][date])
             f.writerow(values)
         print fname
+
 
 
 
