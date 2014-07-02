@@ -87,6 +87,28 @@ class Mixpanel(object):
             hash.update(self.api_secret)
         return hash.hexdigest()
 
+    def propset(self, distinct_id, params, operation):
+        print distinct_id
+        properties = {
+            '$token': self.token,
+            '$distinct_id': distinct_id,
+            '$ignore_time':'True',
+            '$ignore_alias':'True',
+            operation:params   
+        }
+        data = base64.b64encode(json.dumps(properties))
+        host = 'api.mixpanel.com'
+        params = {
+            'data': data,
+            'verbose': 1,
+            'ip':0,
+        }
+        print data
+        url = 'http://%s/%s/?%s' % (host, 'engage', urllib.urlencode(params))
+        response = json.load(urllib2.urlopen(url))
+        if response['status'] != 1:
+            raise RuntimeError('%s\n%s' % (url, response))
+
     def delete_people(self, params={}):
         self.people_export(params, debug=0, high_volume=1)
         GREENLIGHT = raw_input("This will delete %s users. File backup named %s  Enter 'YES' if this is correct:  " % (global_total, fname))
