@@ -337,7 +337,10 @@ def csv(data):
                 values = [segment.encode('utf-8')]
             for date in data['data']['values'][segment]:
                 values.append(data['data']['values'][segment][date])
-            f.writerow(values)
+            try:
+                f.writerow(values)
+            except:
+                print values
         print fname
 
 
