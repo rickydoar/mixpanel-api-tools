@@ -235,7 +235,7 @@ class Mixpanel(object):
         return self.validator(params, required_params, optional_params, endpoint, debug)
 
     def retention(self, params = None, debug = 0):
-        required_params = ['from_date', 'to_date', 'retention type defaults to birth']
+        required_params = ['from_date', 'to_date']
         optional_params = ['retention_type', 'born_event', 'event', 'born_where', 'where', 'interval', 'interval_count', 'unit', 'limit', 'on']
         endpoint = 'retention'
         return self.validator(params, required_params, optional_params, endpoint, debug)
